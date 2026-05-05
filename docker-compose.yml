@@ -1,0 +1,19 @@
+services:
+  ptar-dashboard:
+    build: .
+    container_name: ptar-dashboard
+    ports:
+      - "8501:8501"
+    volumes:
+      # Credenciales — editables sin reconstruir la imagen
+      - ./credentials.yaml:/app/credentials.yaml:rw
+      # Datos por defecto (se sobreescriben con el uploader de la app)
+      - ./datos_ptar.csv:/app/datos_ptar.csv:ro
+      - ./datos_laboratorio.csv:/app/datos_laboratorio.csv:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
