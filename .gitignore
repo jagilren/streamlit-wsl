@@ -6,6 +6,3 @@ __pycache__/
 # Datos — no subir al repo (pueden ser grandes o sensibles)
 datos_ptar.csv
 datos_laboratorio.csv
-
-# Credenciales — NUNCA subir al repo
-credentials.yaml
