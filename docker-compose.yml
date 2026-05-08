@@ -28,11 +28,11 @@ services:
     ports:
       - "8501:8501"
     environment:
-      DB_HOST: timescaledb
-      DB_PORT: 5432
-      DB_NAME: ptar_db
-      DB_USER: postgres
-      DB_PASSWORD: Ptar2026!
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
     volumes:
       # Credenciales — editables sin reconstruir la imagen
       - ./credentials.yaml:/app/credentials.yaml:rw

@@ -13,16 +13,29 @@ logging.basicConfig(
 )
 _log = logging.getLogger("db")
 
-_log_file = logging.FileHandler("/app/logs/db.log")
-_log_file.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] — %(message)s"))
-_log.addHandler(_log_file)
+_LOG_DIR = "/app/logs"
+if os.path.isdir(_LOG_DIR) and os.access(_LOG_DIR, os.W_OK):
+    _log_file = logging.FileHandler(os.path.join(_LOG_DIR, "db.log"))
+    _log_file.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] — %(message)s"))
+    _log.addHandler(_log_file)
+
+
+def _cfg(key: str, default=None):
+    """Lee config desde st.secrets (Streamlit Cloud) y cae a os.environ (local)."""
+    try:
+        if key in st.secrets:
+            return st.secrets[key]
+    except Exception:
+        pass
+    return os.environ.get(key, default)
+
 
 _DSN = {
-    "host":     os.environ.get("DB_HOST", "localhost"),
-    "port":     int(os.environ.get("DB_PORT", 5432)),
-    "dbname":   os.environ.get("DB_NAME", "ptar_db"),
-    "user":     os.environ.get("DB_USER", "postgres"),
-    "password": os.environ.get("DB_PASSWORD", ""),
+    "host":     _cfg("DB_HOST", "localhost"),
+    "port":     int(_cfg("DB_PORT", 5432)),
+    "dbname":   _cfg("DB_NAME", "ptar_db"),
+    "user":     _cfg("DB_USER", "postgres"),
+    "password": _cfg("DB_PASSWORD", ""),
 }
 
 
@@ -86,7 +99,22 @@ def _ensure_schema() -> None:
         conn.close()
 
 
-_ensure_schema()
+_schema_listo = False
+
+
+def _ensure_schema_once() -> None:
+    """Ejecuta _ensure_schema una sola vez por proceso, sin tumbar la app si la DB no responde."""
+    global _schema_listo
+    if _schema_listo:
+        return
+    try:
+        _ensure_schema()
+        _schema_listo = True
+    except Exception as exc:
+        _log.warning("_ensure_schema_once: DB no disponible al arrancar — %s", exc)
+
+
+_ensure_schema_once()
 
 
 def esta_disponible() -> bool:
@@ -96,6 +124,7 @@ def esta_disponible() -> bool:
         conn = get_connection()
         conn.close()
         _log.debug("esta_disponible: DB accesible")
+        _ensure_schema_once()
         return True
     except Exception as exc:
         _log.warning("esta_disponible: DB no accesible — %s", exc)
