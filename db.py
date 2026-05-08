@@ -48,7 +48,7 @@ _DSN = {
     "port":     int(_cfg("DB_PORT", 20916)),
     "dbname":   _cfg("DB_NAME", "ptar_db"),
     "user":     _cfg("DB_USER", "postgres"),
-    "password": _cfg("DB_PASSWORD"),
+    "password": _cfg("DB_PASSWORD", "Ptar2026!"),
 }
 
 
