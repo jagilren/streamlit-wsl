@@ -3,7 +3,8 @@
     "allow": [
       "Read(//c/Users/Administrador/**)",
       "Bash(docker compose *)",
-      "Bash(docker exec *)"
+      "Bash(docker exec *)",
+      "Bash(.venv/bin/python -c \"import ast; ast.parse\\(open\\('db.py'\\).read\\(\\)\\); print\\('OK'\\)\")"
     ]
   }
 }

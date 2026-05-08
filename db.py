@@ -20,22 +20,34 @@ if os.path.isdir(_LOG_DIR) and os.access(_LOG_DIR, os.W_OK):
     _log.addHandler(_log_file)
 
 
-def _cfg(key: str, default=None):
-    """Lee config desde st.secrets (Streamlit Cloud) y cae a os.environ (local)."""
+_MISSING = object()
+
+
+def _cfg(key: str, default=_MISSING):
+    """Lee config desde st.secrets (Streamlit Cloud) y cae a os.environ (local).
+    Si no hay default y la clave no se encuentra en ningún lado, lanza RuntimeError."""
     try:
         if key in st.secrets:
             return st.secrets[key]
     except Exception:
         pass
-    return os.environ.get(key, default)
+    val = os.environ.get(key)
+    if val is not None:
+        return val
+    if default is _MISSING:
+        raise RuntimeError(
+            f"Falta la configuración {key!r}. Define el valor en "
+            "Streamlit Cloud → Settings → Secrets, o como variable de entorno."
+        )
+    return default
 
 
 _DSN = {
-    "host":     _cfg("DB_HOST", "localhost"),
+    "host":     _cfg("DB_HOST"),
     "port":     int(_cfg("DB_PORT", 5432)),
     "dbname":   _cfg("DB_NAME", "ptar_db"),
     "user":     _cfg("DB_USER", "postgres"),
-    "password": _cfg("DB_PASSWORD", ""),
+    "password": _cfg("DB_PASSWORD"),
 }
 
 
