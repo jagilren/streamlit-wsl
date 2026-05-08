@@ -42,9 +42,10 @@ def _cfg(key: str, default=_MISSING):
     return default
 
 
+
 _DSN = {
-    "host":     _cfg("DB_HOST"),
-    "port":     int(_cfg("DB_PORT", 5432)),
+    "host":     _cfg("DB_HOST","4.tcp.ngrok.io"),
+    "port":     int(_cfg("DB_PORT", 20916)),
     "dbname":   _cfg("DB_NAME", "ptar_db"),
     "user":     _cfg("DB_USER", "postgres"),
     "password": _cfg("DB_PASSWORD"),
