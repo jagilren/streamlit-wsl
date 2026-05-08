@@ -1,8 +1,82 @@
+# Entornos virtuales de Python
 venv/
+.venv/
+env/
+ENV/
+virtualenv/
+.virtualenv/
+
+# Cache de Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.pycache
+.Python
+
+# Distribución y empaquetado
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+wheels/
+*.whl
+MANIFEST
+
+# Jupyter / IPython
+.ipynb_checkpoints/
+*.ipynb
+
+# Variables de entorno y secretos
 .env
+.env.*
+*.env
+credentials.yaml
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.toml
+.streamlit/secrets.toml
+
+# Logs y bases de datos locales
+*.log
+*.sqlite
+*.db
+*.sql
+
+# Sistemas operativos
+.DS_Store
+Thumbs.db
+desktop.ini
+*~
+
+# IDEs y editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*.code-workspace
+.history/
+
+# Docker
+.dockerignore
+
+# pytest / cobertura
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+coverage.xml
+*.cover
+
+# mypy / tipo
+.mypy_cache/
+.dmypy.json
+dmypy.json
 
 # Datos — no subir al repo (pueden ser grandes o sensibles)
 datos_ptar.csv
 datos_laboratorio.csv
+*.csv

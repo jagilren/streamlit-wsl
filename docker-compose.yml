@@ -1,19 +1,73 @@
 services:
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: timescaledb
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Ptar2026!
+      POSTGRES_DB: ptar_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+    networks:
+      - ptar-shared
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ptar_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   ptar-dashboard:
     build: .
     container_name: ptar-dashboard
+    depends_on:
+      timescaledb:
+        condition: service_healthy
     ports:
       - "8501:8501"
+    environment:
+      DB_HOST: timescaledb
+      DB_PORT: 5432
+      DB_NAME: ptar_db
+      DB_USER: postgres
+      DB_PASSWORD: Ptar2026!
     volumes:
       # Credenciales — editables sin reconstruir la imagen
       - ./credentials.yaml:/app/credentials.yaml:rw
-      # Datos por defecto (se sobreescriben con el uploader de la app)
-      - ./datos_ptar.csv:/app/datos_ptar.csv:ro
-      - ./datos_laboratorio.csv:/app/datos_laboratorio.csv:ro
+      # Logs de db.py accesibles desde el host
+      - ./logs:/app/logs
+    networks:
+      - ptar-shared
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 15s
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: jagilren@gmail.com
+      PGADMIN_DEFAULT_PASSWORD: Ptar2026!
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - ptar-shared
+    depends_on:
+      - timescaledb
+
+volumes:
+  timescale_data:
+  pgadmin_data:
+
+networks:
+  ptar-shared:
+    external: true

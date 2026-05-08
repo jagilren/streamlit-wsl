@@ -5,7 +5,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py config.py data.py  ./
+COPY app.py config.py data.py db.py ./
 
 EXPOSE 8501
 

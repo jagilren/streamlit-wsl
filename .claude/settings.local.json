@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/Administrador/**)",
+      "Bash(docker compose *)",
+      "Bash(docker exec *)"
+    ]
+  }
+}
