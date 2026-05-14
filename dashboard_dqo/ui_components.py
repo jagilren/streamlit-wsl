@@ -12,10 +12,11 @@ CSS = """
 <style>
 .kpi-card {
     background: #F0F2F6;
+    border: 1px solid #D9DCE3;
+    border-left: 4px solid {border};
     border-radius: 10px;
     padding: 16px 20px;
     text-align: center;
-    border-left: 4px solid {border};
     min-height: 120px;
     position: relative;
 }

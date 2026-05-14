@@ -15,7 +15,8 @@ from .cache import (
     get_cached_ph_violations, get_cached_ph_violations_range,
 )
 from .components.charts import (
-    render_ph_kpi_card, render_ph_trend_chart, render_violations_table,
+    inject_ph_live_css, render_ph_kpi_card, render_ph_trend_chart,
+    render_violations_table,
 )
 from .utils import STATUS_CONFIG, compute_ph_status
 
@@ -25,9 +26,11 @@ def _status_badge(val: float | None, cfg: dict) -> str:
     estado = compute_ph_status(val, cfg)
     s = STATUS_CONFIG[estado]
     return (
-        f"<span style='background:{s['badge_bg']};color:{s['color']};"
-        f"padding:1px 8px;border-radius:4px;font-size:11px;font-weight:600;"
-        f"margin-left:6px'>{s['label']}</span>"
+        f"<span style='background:{s['badge_bg']};color:{s['badge_fg']};"
+        f"padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700;"
+        f"letter-spacing:0.03em;margin-left:8px;"
+        f"box-shadow:0 1px 2px rgba(0,0,0,0.15);'>"
+        f"{s['label']}</span>"
     )
 
 
@@ -52,6 +55,9 @@ def render(conn, time_filter: dict | None = None) -> None:
 
     df_current = get_cached_current_ph(conn)
 
+    # CSS del badge "EN VIVO" — inyectado una sola vez por sesión.
+    inject_ph_live_css()
+
     # ── KPI cards (1 fila × 4 columnas) ─────────────────────────────────────
     cols = st.columns(len(tag_configs))
     for i, cfg in enumerate(tag_configs):
@@ -59,7 +65,7 @@ def render(conn, time_filter: dict | None = None) -> None:
         val = float(sub.iloc[0]) if not sub.empty else None
         with cols[i]:
             st.markdown(
-                render_ph_kpi_card(cfg["tag_id"], val, cfg),
+                render_ph_kpi_card(cfg["tag_id"], val, cfg, live=True),
                 unsafe_allow_html=True,
             )
 
@@ -77,32 +83,36 @@ def render(conn, time_filter: dict | None = None) -> None:
                 continue
             cfg = tag_configs[tag_idx]
             with row_cols[col_idx]:
-                sub = df_current.loc[df_current["tag_id"] == cfg["tag_id"], "value"]
-                val = float(sub.iloc[0]) if not sub.empty else None
-                st.markdown(
-                    f"**{cfg['tag_id']} — {cfg['process_point']}**"
-                    f"{_status_badge(val, cfg)}",
-                    unsafe_allow_html=True,
-                )
-                st.caption(
-                    f"Óptimo: {cfg['opt_min']}–{cfg['opt_max']} · "
-                    f"Crítico: {cfg['crit_min']}–{cfg['crit_max']}"
-                )
-
-                if rango_custom:
-                    df_trend = get_cached_ph_trend_range(conn, cfg["tag_id"], fi, ff)
-                else:
-                    df_trend = get_cached_ph_trend(conn, cfg["tag_id"])
-                fig = render_ph_trend_chart(df_trend, cfg)
-                st.plotly_chart(
-                    fig, use_container_width=True,
-                    key=f"ph_chart_{cfg['tag_id']}",
-                )
-
-                if rango_custom:
-                    df_viol = get_cached_ph_violations_range(
-                        conn, cfg["tag_id"], cfg, fi, ff,
+                # Marco visual: cada panel (encabezado + gráfica + tabla) queda
+                # encerrado en un contenedor con borde para separar claramente
+                # las 4 estaciones de muestreo.
+                with st.container(border=True):
+                    sub = df_current.loc[df_current["tag_id"] == cfg["tag_id"], "value"]
+                    val = float(sub.iloc[0]) if not sub.empty else None
+                    st.markdown(
+                        f"**{cfg['tag_id']} — {cfg['process_point']}**"
+                        f"{_status_badge(val, cfg)}",
+                        unsafe_allow_html=True,
                     )
-                else:
-                    df_viol = get_cached_ph_violations(conn, cfg["tag_id"], cfg)
-                render_violations_table(df_viol, cfg)
+                    st.caption(
+                        f"Óptimo: {cfg['opt_min']}–{cfg['opt_max']} · "
+                        f"Crítico: {cfg['crit_min']}–{cfg['crit_max']}"
+                    )
+
+                    if rango_custom:
+                        df_trend = get_cached_ph_trend_range(conn, cfg["tag_id"], fi, ff)
+                    else:
+                        df_trend = get_cached_ph_trend(conn, cfg["tag_id"])
+                    fig = render_ph_trend_chart(df_trend, cfg)
+                    st.plotly_chart(
+                        fig, use_container_width=True,
+                        key=f"ph_chart_{cfg['tag_id']}",
+                    )
+
+                    if rango_custom:
+                        df_viol = get_cached_ph_violations_range(
+                            conn, cfg["tag_id"], cfg, fi, ff,
+                        )
+                    else:
+                        df_viol = get_cached_ph_violations(conn, cfg["tag_id"], cfg)
+                    render_violations_table(df_viol, cfg)

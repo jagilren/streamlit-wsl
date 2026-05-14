@@ -457,19 +457,13 @@ estado = estado_global(
 
 _zona_encabezado(filtros, estado)
 
-# Barra de acciones: refresh manual + estado del auto-refresh.
-col_btn, col_info = st.columns([1, 4])
-with col_btn:
-    if st.button("🔄 Actualizar ahora", use_container_width=True, type="primary",
-                 help="Limpia el caché y vuelve a consultar la BD."):
-        st.cache_data.clear()
-        st.session_state["ultima_actualizacion"] = datetime.now()
-        st.rerun()
-with col_info:
-    seg = AUTOREFRESH_MS // 1000
-    ult_dato = kpis.get("fecha_ultimo_registro")
-    sufijo = f" · último dato en BD: {formato_fecha_display(ult_dato)}" if ult_dato else ""
-    st.caption(f"⟳ Auto-refresh cada {seg} s{sufijo}")
+# Barra de acciones compartida (reutilizable en todos los dashboards).
+from components.refresh_bar import render_refresh_bar
+_ult = kpis.get("fecha_ultimo_registro")
+render_refresh_bar(
+    autorefresh_seconds=AUTOREFRESH_MS // 1000,
+    ultimo_dato_label=formato_fecha_display(_ult) if _ult else None,
+)
 
 _zona_kpis(filtros, kpis, cumpl)
 

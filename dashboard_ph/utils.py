@@ -24,25 +24,65 @@ def compute_ph_status(ph_value: float | None, cfg: dict) -> Status:
     return "ok"
 
 
+# Paleta con dos planos de color:
+#   - `color`     → texto del valor numérico, borde-left de la card y línea de
+#                   tendencia. Tono saturado sobre fondo claro de la card.
+#   - `badge_fg`  → texto del badge (blanco para máximo contraste).
+#   - `badge_bg`  → fondo del badge (color saturado).
+# Los badges alertan, así que se buscan ratios WCAG ≥ 4.5:1.
 STATUS_CONFIG: dict[str, dict[str, str]] = {
-    "ok":            {"label": "Normal",            "color": "#1D9E75", "badge_bg": "#E1F5EE"},
-    "warn_high":     {"label": "⚠ Alto óptimo",     "color": "#BA7517", "badge_bg": "#FAEEDA"},
-    "warn_low":      {"label": "⚠ Bajo óptimo",     "color": "#BA7517", "badge_bg": "#FAEEDA"},
-    "critical_high": {"label": "🚨 Alto crítico",    "color": "#A32D2D", "badge_bg": "#FCEBEB"},
-    "critical_low":  {"label": "🚨 Bajo crítico",    "color": "#A32D2D", "badge_bg": "#FCEBEB"},
-    "no_data":       {"label": "Sin datos",         "color": "#888780", "badge_bg": "#F1EFE8"},
+    "ok": {
+        "label": "Normal",
+        "color":    "#1D9E75",
+        "badge_fg": "#FFFFFF",
+        "badge_bg": "#1D9E75",
+    },
+    "warn_high": {
+        "label": "⚠ Alto óptimo",
+        "color":    "#B86A00",
+        "badge_fg": "#FFFFFF",
+        "badge_bg": "#E07B00",
+    },
+    "warn_low": {
+        "label": "⚠ Bajo óptimo",
+        "color":    "#B86A00",
+        "badge_fg": "#FFFFFF",
+        "badge_bg": "#E07B00",
+    },
+    "critical_high": {
+        "label": "🚨 ALTO CRÍTICO",
+        "color":    "#A32D2D",
+        "badge_fg": "#FFFFFF",
+        "badge_bg": "#C62828",
+    },
+    "critical_low": {
+        "label": "🚨 BAJO CRÍTICO",
+        "color":    "#A32D2D",
+        "badge_fg": "#FFFFFF",
+        "badge_bg": "#C62828",
+    },
+    "no_data": {
+        "label": "Sin datos",
+        "color":    "#666666",
+        "badge_fg": "#FFFFFF",
+        "badge_bg": "#777777",
+    },
 }
 
 
 def classify_violation(ph_value: float, cfg: dict) -> tuple[str, str]:
-    """Para la tabla de eventos: devuelve (violation_type, severity)."""
+    """Para la tabla de eventos: devuelve (violation_type, severity).
+
+    Severity es un string interno (no se muestra en la UI; solo controla
+    el color de fila). Valores: "crítico" | "advertencia".
+    """
     if ph_value < cfg["crit_min"]:
-        return ("Bajo crítico", "crit")
+        return ("Bajo crítico", "crítico")
     if ph_value > cfg["crit_max"]:
-        return ("Alto crítico", "crit")
+        return ("Alto crítico", "crítico")
     if ph_value < cfg["opt_min"]:
-        return ("Bajo óptimo", "warn")
-    return ("Alto óptimo", "warn")
+        return ("Bajo óptimo", "advertencia")
+    return ("Alto óptimo", "advertencia")
 
 
 def deviation(ph_value: float, cfg: dict) -> float:

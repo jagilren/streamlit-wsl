@@ -7,7 +7,6 @@ App autónoma paralela al dashboard DQO. Ejecutar:
 from __future__ import annotations
 
 import sys
-from datetime import datetime
 from pathlib import Path
 
 import streamlit as st
@@ -25,6 +24,7 @@ try:
 except ModuleNotFoundError:
     pass
 
+from components.refresh_bar import render_refresh_bar
 from components.shared_time_filter import (
     get_datetime_range, render_shared_time_filter,
 )
@@ -93,11 +93,6 @@ with st.sidebar:
     periodo, fi_date, ff_date = render_shared_time_filter()
     render_ph_sidebar_filters()
 
-    st.divider()
-    if st.button("🔄 Actualizar ahora", use_container_width=True, type="primary"):
-        st.cache_data.clear()
-        st.rerun()
-
 
 # Construye el rango de fechas para pasarlo al render.
 _fi, _ff = get_datetime_range()
@@ -105,10 +100,9 @@ _fi, _ff = get_datetime_range()
 
 # ── Encabezado ───────────────────────────────────────────────────────────────
 st.title("🧪 Dashboard pH — PTAR")
-st.caption(
-    f"Período: {_fi.date()} al {_ff.date()} · "
-    f"Auto-refresh cada {AUTOREFRESH_MS // 1000} s · "
-    f"última carga: {datetime.now().strftime('%H:%M:%S')}"
+render_refresh_bar(
+    autorefresh_seconds=AUTOREFRESH_MS // 1000,
+    extra=f"Período: {_fi.date()} al {_ff.date()}",
 )
 st.divider()
 

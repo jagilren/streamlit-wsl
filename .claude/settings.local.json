@@ -4,7 +4,9 @@
       "Read(//c/Users/Administrador/**)",
       "Bash(docker compose *)",
       "Bash(docker exec *)",
-      "Bash(.venv/bin/python -c \"import ast; ast.parse\\(open\\('db.py'\\).read\\(\\)\\); print\\('OK'\\)\")"
+      "Bash(.venv/bin/python -c \"import ast; ast.parse\\(open\\('db.py'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(python -m datos_dqo --solo-generar)"
     ]
   }
 }
