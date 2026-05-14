@@ -8,3 +8,4 @@ python-dotenv==1.1.0
 PyYAML==6.0.3
 streamlit==1.57.0
 streamlit-authenticator==0.4.2
+streamlit-autorefresh==1.0.1

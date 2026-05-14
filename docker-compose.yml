@@ -49,7 +49,7 @@ services:
       start_period: 15s
 
   pgadmin:
-    image: dpage/pgadmin4:latest
+    image: dpage/pgadmin4:9.15
     container_name: pgadmin
     restart: unless-stopped
     environment:
@@ -63,6 +63,57 @@ services:
       - ptar-shared
     depends_on:
       - timescaledb
+
+  dqo-streamer:
+    build: .
+    container_name: dqo-streamer
+    restart: unless-stopped
+    command: ["python", "-m", "datos_dqo.streamer"]
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    environment:
+      # En la red de Docker, el host de la BD es el nombre del servicio.
+      DB_HOST: timescaledb
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DQO_STREAMER_LOG: INFO
+      TZ: America/Bogota
+    volumes:
+      # Bind-mount del paquete (no se copia en el Dockerfile actual).
+      - ./datos_dqo:/app/datos_dqo:ro
+      # db.py vive en la raíz del repo y lo necesita el cargador.
+      - ./db.py:/app/db.py:ro
+    networks:
+      - ptar-shared
+
+  ph-data-generator:
+    build: .
+    container_name: ph-data-generator
+    restart: unless-stopped
+    command: ["python", "-m", "dashboard_ph.data_generator"]
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    environment:
+      DB_HOST: timescaledb
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      PH_GENERATOR_LOG: INFO
+      PH_INTERVAL_SECONDS: 180
+      TZ: America/Bogota
+    volumes:
+      # Bind-mount del paquete (no se copia en el Dockerfile actual).
+      - ./dashboard_ph:/app/dashboard_ph:ro
+      # db.py y config.py viven en la raíz del repo.
+      - ./db.py:/app/db.py:ro
+      - ./config.py:/app/config.py:ro
+    networks:
+      - ptar-shared
 
 volumes:
   timescale_data:
