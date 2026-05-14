@@ -25,6 +25,9 @@ try:
 except ModuleNotFoundError:
     pass
 
+from components.shared_time_filter import (
+    get_datetime_range, render_shared_time_filter,
+)
 from db import get_connection
 from dashboard_ph.components.sidebar_filters import render_ph_sidebar_filters
 from dashboard_ph.db_init import init_safe
@@ -32,12 +35,17 @@ from dashboard_ph.view import render as render_ph
 
 
 # ── Configuración de página ───────────────────────────────────────────────────
-st.set_page_config(
-    page_title="Dashboard pH — PTAR",
-    page_icon="🧪",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
+# Cuando este archivo se ejecuta como page bajo home.py, set_page_config ya fue
+# llamado por el orquestador y vuelve a llamar aquí lanza StreamlitAPIException.
+try:
+    st.set_page_config(
+        page_title="Dashboard pH — PTAR",
+        page_icon="🧪",
+        layout="wide",
+        initial_sidebar_state="expanded",
+    )
+except Exception:
+    pass
 
 # Auto-refresh cada 60s para reflejar las lecturas nuevas del generator (3 min).
 AUTOREFRESH_MS = 60_000
@@ -79,6 +87,10 @@ with st.sidebar:
     st.divider()
     st.markdown("### 🧪 pH — PTAR")
     st.caption("Lecturas cada 3 min · 4 transmisores.")
+
+    # Filtro de tiempo compartido con el dashboard DQO (mismas keys → persiste
+    # al navegar entre páginas dentro de home.py).
+    periodo, fi_date, ff_date = render_shared_time_filter()
     render_ph_sidebar_filters()
 
     st.divider()
@@ -87,10 +99,14 @@ with st.sidebar:
         st.rerun()
 
 
+# Construye el rango de fechas para pasarlo al render.
+_fi, _ff = get_datetime_range()
+
+
 # ── Encabezado ───────────────────────────────────────────────────────────────
 st.title("🧪 Dashboard pH — PTAR")
 st.caption(
-    f"Tendencia 24 h · Eventos fuera de rango (semana móvil) · "
+    f"Período: {_fi.date()} al {_ff.date()} · "
     f"Auto-refresh cada {AUTOREFRESH_MS // 1000} s · "
     f"última carga: {datetime.now().strftime('%H:%M:%S')}"
 )
@@ -108,6 +124,6 @@ except Exception as exc:
     st.stop()
 
 try:
-    render_ph(_conn)
+    render_ph(_conn, time_filter={"start": _fi, "end": _ff})
 finally:
     _conn.close()

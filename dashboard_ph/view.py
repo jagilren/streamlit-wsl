@@ -11,7 +11,8 @@ import streamlit as st
 
 from .cache import (
     get_cached_current_ph, get_cached_ph_tag_configs,
-    get_cached_ph_trend, get_cached_ph_violations,
+    get_cached_ph_trend, get_cached_ph_trend_range,
+    get_cached_ph_violations, get_cached_ph_violations_range,
 )
 from .components.charts import (
     render_ph_kpi_card, render_ph_trend_chart, render_violations_table,
@@ -31,7 +32,16 @@ def _status_badge(val: float | None, cfg: dict) -> str:
 
 
 def render(conn, time_filter: dict | None = None) -> None:
-    """Renderiza el dashboard pH completo dentro del contenedor actual."""
+    """Renderiza el dashboard pH completo dentro del contenedor actual.
+
+    Si `time_filter` es un dict con `start`/`end` (datetimes), las gráficas y
+    la tabla de violaciones usan ese rango; en caso contrario se usan los
+    rangos por defecto (24h / 7d).
+    """
+    fi = time_filter.get("start") if time_filter else None
+    ff = time_filter.get("end") if time_filter else None
+    rango_custom = fi is not None and ff is not None
+
     tag_configs = get_cached_ph_tag_configs(conn)
     if not tag_configs:
         st.warning(
@@ -79,12 +89,20 @@ def render(conn, time_filter: dict | None = None) -> None:
                     f"Crítico: {cfg['crit_min']}–{cfg['crit_max']}"
                 )
 
-                df_trend = get_cached_ph_trend(conn, cfg["tag_id"])
+                if rango_custom:
+                    df_trend = get_cached_ph_trend_range(conn, cfg["tag_id"], fi, ff)
+                else:
+                    df_trend = get_cached_ph_trend(conn, cfg["tag_id"])
                 fig = render_ph_trend_chart(df_trend, cfg)
                 st.plotly_chart(
                     fig, use_container_width=True,
                     key=f"ph_chart_{cfg['tag_id']}",
                 )
 
-                df_viol = get_cached_ph_violations(conn, cfg["tag_id"], cfg)
+                if rango_custom:
+                    df_viol = get_cached_ph_violations_range(
+                        conn, cfg["tag_id"], cfg, fi, ff,
+                    )
+                else:
+                    df_viol = get_cached_ph_violations(conn, cfg["tag_id"], cfg)
                 render_violations_table(df_viol, cfg)

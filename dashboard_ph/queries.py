@@ -58,6 +58,19 @@ def get_ph_trend_24h(conn, tag_id: str) -> pd.DataFrame:
     return _run_df(conn, sql, {"tag": tag_id})
 
 
+def get_ph_trend_range(conn, tag_id: str, fi: datetime, ff: datetime) -> pd.DataFrame:
+    """Mediciones de un TAG en [fi, ff], ordenadas ascendente."""
+    sql = """
+        SELECT timestamp, value::float AS value
+        FROM ph_measurements
+        WHERE tag_id = %(tag)s
+          AND timestamp >= %(fi)s
+          AND timestamp <= %(ff)s
+        ORDER BY timestamp ASC
+    """
+    return _run_df(conn, sql, {"tag": tag_id, "fi": fi, "ff": ff})
+
+
 def get_ph_violations_rolling_week(
     conn, tag_id: str, tag_config: dict, max_records: int = 60,
 ) -> pd.DataFrame:
@@ -81,6 +94,34 @@ def get_ph_violations_rolling_week(
         "opt_max": tag_config["opt_max"],
         "lim": max_records,
     })
+    return _enrich_violations(df, tag_config)
+
+
+def get_ph_violations_range(
+    conn, tag_id: str, tag_config: dict, fi: datetime, ff: datetime,
+    max_records: int = 60,
+) -> pd.DataFrame:
+    """Eventos fuera del rango óptimo en [fi, ff]. Mismo shape que rolling_week."""
+    sql = """
+        SELECT timestamp, value::float AS value
+        FROM ph_measurements
+        WHERE tag_id = %(tag)s
+          AND timestamp >= %(fi)s
+          AND timestamp <= %(ff)s
+          AND (value < %(opt_min)s OR value > %(opt_max)s)
+        ORDER BY timestamp DESC
+        LIMIT %(lim)s
+    """
+    df = _run_df(conn, sql, {
+        "tag": tag_id, "fi": fi, "ff": ff,
+        "opt_min": tag_config["opt_min"], "opt_max": tag_config["opt_max"],
+        "lim": max_records,
+    })
+    return _enrich_violations(df, tag_config)
+
+
+def _enrich_violations(df: pd.DataFrame, tag_config: dict) -> pd.DataFrame:
+    """Anota cada fila con `deviation`, `violation_type`, `severity`."""
     if df.empty:
         df["deviation"] = []
         df["violation_type"] = []

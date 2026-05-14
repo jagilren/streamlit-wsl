@@ -53,12 +53,17 @@ from dashboard_dqo.ui_components import (
 
 
 # ── Configuración de página ───────────────────────────────────────────────────
-st.set_page_config(
-    page_title="Dashboard DQO — PTAR",
-    page_icon="💧",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
+# Cuando este archivo se ejecuta como page bajo home.py, set_page_config ya fue
+# llamado por el orquestador y vuelve a llamar aquí lanza StreamlitAPIException.
+try:
+    st.set_page_config(
+        page_title="Dashboard DQO — PTAR",
+        page_icon="💧",
+        layout="wide",
+        initial_sidebar_state="expanded",
+    )
+except Exception:
+    pass
 inyectar_css()
 
 
@@ -102,32 +107,10 @@ def _sidebar() -> dict:
         _authenticator.logout(location="sidebar")
         st.divider()
 
-        periodos = ["Hoy", "Esta semana", "Este mes", "Últimos 90 días", "Este año"]
-
-        # Inicialización única: la primera vez sembramos periodo/fi/ff y luego los
-        # widgets se manejan sólo por session_state (sin value= / index=).
-        if "periodo" not in st.session_state:
-            st.session_state["periodo"] = "Este mes"
-            _fi0, _ff0 = get_rango_fechas(st.session_state["periodo"])
-            st.session_state["fi"] = _fi0.date()
-            st.session_state["ff"] = _ff0.date()
-
-        def _sync_fechas_con_periodo() -> None:
-            """Cuando cambia el período, resetea fi/ff a las fechas correspondientes."""
-            nuevo_fi, nuevo_ff = get_rango_fechas(st.session_state["periodo"])
-            st.session_state["fi"] = nuevo_fi.date()
-            st.session_state["ff"] = nuevo_ff.date()
-
-        periodo = st.selectbox(
-            "Período de análisis", periodos,
-            key="periodo", on_change=_sync_fechas_con_periodo,
-        )
-
-        col1, col2 = st.columns(2)
-        with col1:
-            fi = st.date_input("Desde", key="fi")
-        with col2:
-            ff = st.date_input("Hasta", key="ff")
+        # Filtro de tiempo compartido (mismas keys en session_state → persiste
+        # cuando el usuario navega a otro dashboard en home.py).
+        from components.shared_time_filter import render_shared_time_filter
+        periodo, fi, ff = render_shared_time_filter()
 
         st.divider()
         st.markdown("**Puntos de muestreo**")
