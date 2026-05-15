@@ -47,10 +47,26 @@ def render_shared_time_filter() -> tuple[str, date, date]:
     """
     _seed_session_state()
 
-    st.selectbox(
-        "Período de análisis", _PERIODOS,
-        key="periodo", on_change=_sync_fechas_con_periodo,
-    )
+    # Período + botón de refresh en la misma fila. El botón solo fuerza un
+    # rerun (no muta estado): útil si al cambiar de dashboard la vista quedó
+    # con datos cacheados de una selección previa y se quiere re-sincronizar
+    # con el período activo.
+    col_p, col_r = st.columns([5, 1], vertical_alignment="bottom")
+    with col_p:
+        st.selectbox(
+            "Período de análisis", _PERIODOS,
+            key="periodo", on_change=_sync_fechas_con_periodo,
+        )
+    with col_r:
+        # `type="tertiary"` quita el borde + fondo gris del botón estándar,
+        # dejando solo el ícono. Encaja mejor visualmente junto al selectbox.
+        st.button(
+            "🔄",
+            key="periodo_refresh",
+            help="Refrescar la vista con el período seleccionado",
+            use_container_width=True,
+            type="tertiary",
+        )
 
     col1, col2 = st.columns(2)
     with col1:

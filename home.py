@@ -42,6 +42,13 @@ except Exception:
     pass
 
 
+# ── Aviso de uso de cookies ──────────────────────────────────────────────────
+# Se inyecta antes de la auth para que también se vea en la pantalla de login.
+# Persistente vía localStorage: una vez "Entendido", no vuelve a mostrarse.
+from components.cookie_banner import render_cookie_banner
+render_cookie_banner()
+
+
 # ── Autenticación global ─────────────────────────────────────────────────────
 # Hecha aquí (no en cada dashboard). Si la cookie no es válida, muestra el
 # form de login y st.stop() — los dashboards nunca llegan a renderizarse.
