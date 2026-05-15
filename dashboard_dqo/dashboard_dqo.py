@@ -12,8 +12,6 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
-import streamlit_authenticator as stauth
-import yaml
 
 _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
@@ -67,28 +65,11 @@ except Exception:
 inyectar_css()
 
 
-# ── Autenticación (reusa credentials.yaml del proyecto) ───────────────────────
-_CREDS_FILE = _ROOT / "credentials.yaml"
-if not _CREDS_FILE.exists():
-    st.error("No se encontró `credentials.yaml`. Contacta al administrador.")
-    st.stop()
-
-with open(_CREDS_FILE, encoding="utf-8") as _f:
-    _creds_cfg = yaml.safe_load(_f)
-
-_authenticator = stauth.Authenticate(
-    str(_CREDS_FILE.resolve()),
-    _creds_cfg["cookie"]["name"],
-    _creds_cfg["cookie"]["key"],
-    _creds_cfg["cookie"]["expiry_days"],
-)
-_authenticator.login(location="main")
-
-if st.session_state.get("authentication_status") is False:
-    st.error("Usuario o contraseña incorrectos.")
-    st.stop()
-elif st.session_state.get("authentication_status") is None:
-    st.stop()
+# ── Autenticación compartida ─────────────────────────────────────────────────
+# Idempotente: si el usuario ya está autenticado por home.py, no muestra form.
+# Si se ejecuta standalone, pide credenciales como antes.
+from components.auth import setup_auth
+setup_auth()
 
 
 # ── Catálogo de TAGs (cargado desde BD; fallback a config si la BD falla) ────
@@ -104,7 +85,6 @@ def _tags_por_rol(rol: str) -> list[str]:
 def _sidebar() -> dict:
     with st.sidebar:
         st.markdown("### 💧 Control DQO — PTAR")
-        _authenticator.logout(location="sidebar")
         st.divider()
 
         # Filtro de tiempo compartido (mismas keys en session_state → persiste

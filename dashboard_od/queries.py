@@ -1,4 +1,4 @@
-"""Queries SQL específicas del dashboard pH.
+"""Queries SQL específicas del dashboard OD.
 
 Todas devuelven pandas.DataFrame. La conexión se pasa explícitamente para
 respetar el patrón del proyecto (cache via cache.py con prefijo `_conn`).
@@ -22,12 +22,12 @@ def _run_df(conn, sql: str, params: dict | None = None) -> pd.DataFrame:
     return pd.DataFrame([dict(r) for r in rows], columns=cols)
 
 
-def get_ph_tag_configs(conn) -> list[dict]:
-    """Lee ph_tag_config para los TAGs activos."""
+def get_od_tag_configs(conn) -> list[dict]:
+    """Lee od_tag_config para los TAGs activos."""
     sql = """
         SELECT tag_id, tag_description, process_point,
                opt_min, opt_max, crit_min, crit_max, unit
-        FROM ph_tag_config
+        FROM od_tag_config
         WHERE active = TRUE
         ORDER BY tag_id
     """
@@ -35,33 +35,33 @@ def get_ph_tag_configs(conn) -> list[dict]:
     return df.to_dict("records")
 
 
-def get_current_ph_values(conn) -> pd.DataFrame:
+def get_current_od_values(conn) -> pd.DataFrame:
     """Última medición de cada TAG. Columnas: tag_id, timestamp, value, quality."""
     sql = """
         SELECT DISTINCT ON (tag_id)
                tag_id, timestamp, value::float AS value, quality
-        FROM ph_measurements
+        FROM od_measurements
         ORDER BY tag_id, timestamp DESC
     """
     return _run_df(conn, sql)
 
 
-def get_ph_last_timestamp(conn) -> datetime | None:
-    """Timestamp del registro más reciente en ph_measurements (cualquier TAG).
+def get_od_last_timestamp(conn) -> datetime | None:
+    """Timestamp del registro más reciente en od_measurements (cualquier TAG).
 
     Usado por el refresh_bar para mostrar cuándo entró el último dato.
     """
     with conn.cursor() as cur:
-        cur.execute("SELECT MAX(timestamp) FROM ph_measurements")
+        cur.execute("SELECT MAX(timestamp) FROM od_measurements")
         row = cur.fetchone()
     return row[0] if row else None
 
 
-def get_ph_trend_24h(conn, tag_id: str) -> pd.DataFrame:
+def get_od_trend_24h(conn, tag_id: str) -> pd.DataFrame:
     """Mediciones de las últimas 24h para un TAG, ordenadas ascendente."""
     sql = """
         SELECT timestamp, value::float AS value
-        FROM ph_measurements
+        FROM od_measurements
         WHERE tag_id = %(tag)s
           AND timestamp >= NOW() - INTERVAL '24 hours'
         ORDER BY timestamp ASC
@@ -69,11 +69,11 @@ def get_ph_trend_24h(conn, tag_id: str) -> pd.DataFrame:
     return _run_df(conn, sql, {"tag": tag_id})
 
 
-def get_ph_trend_range(conn, tag_id: str, fi: datetime, ff: datetime) -> pd.DataFrame:
+def get_od_trend_range(conn, tag_id: str, fi: datetime, ff: datetime) -> pd.DataFrame:
     """Mediciones de un TAG en [fi, ff], ordenadas ascendente."""
     sql = """
         SELECT timestamp, value::float AS value
-        FROM ph_measurements
+        FROM od_measurements
         WHERE tag_id = %(tag)s
           AND timestamp >= %(fi)s
           AND timestamp <= %(ff)s
@@ -82,17 +82,13 @@ def get_ph_trend_range(conn, tag_id: str, fi: datetime, ff: datetime) -> pd.Data
     return _run_df(conn, sql, {"tag": tag_id, "fi": fi, "ff": ff})
 
 
-def get_ph_violations_rolling_week(
+def get_od_violations_rolling_week(
     conn, tag_id: str, tag_config: dict, max_records: int = 60,
 ) -> pd.DataFrame:
-    """Eventos fuera del rango óptimo en los últimos 7 días.
-
-    Devuelve columnas: timestamp, value, deviation, violation_type, severity.
-    Ordenado DESC y limitado a `max_records`.
-    """
+    """Eventos fuera del rango óptimo en los últimos 7 días."""
     sql = """
         SELECT timestamp, value::float AS value
-        FROM ph_measurements
+        FROM od_measurements
         WHERE tag_id = %(tag)s
           AND timestamp >= NOW() - INTERVAL '7 days'
           AND (value < %(opt_min)s OR value > %(opt_max)s)
@@ -108,14 +104,14 @@ def get_ph_violations_rolling_week(
     return _enrich_violations(df, tag_config)
 
 
-def get_ph_violations_range(
+def get_od_violations_range(
     conn, tag_id: str, tag_config: dict, fi: datetime, ff: datetime,
     max_records: int = 60,
 ) -> pd.DataFrame:
     """Eventos fuera del rango óptimo en [fi, ff]. Mismo shape que rolling_week."""
     sql = """
         SELECT timestamp, value::float AS value
-        FROM ph_measurements
+        FROM od_measurements
         WHERE tag_id = %(tag)s
           AND timestamp >= %(fi)s
           AND timestamp <= %(ff)s
@@ -138,7 +134,6 @@ def _enrich_violations(df: pd.DataFrame, tag_config: dict) -> pd.DataFrame:
         df["violation_type"] = []
         df["severity"] = []
         return df
-
     df["deviation"] = df["value"].apply(lambda v: deviation(float(v), tag_config))
     cls = df["value"].apply(lambda v: classify_violation(float(v), tag_config))
     df["violation_type"] = [c[0] for c in cls]
@@ -146,24 +141,7 @@ def _enrich_violations(df: pd.DataFrame, tag_config: dict) -> pd.DataFrame:
     return df
 
 
-def get_ph_daily_stats(conn, tag_id: str, days: int = 7) -> pd.DataFrame:
-    """Estadísticas diarias (min, max, avg, count) usando time_bucket."""
-    sql = """
-        SELECT time_bucket('1 day', timestamp) AS day,
-               MIN(value)::float AS min_v,
-               MAX(value)::float AS max_v,
-               AVG(value)::float AS avg_v,
-               COUNT(*)          AS n
-        FROM ph_measurements
-        WHERE tag_id = %(tag)s
-          AND timestamp >= NOW() - (%(d)s::int * INTERVAL '1 day')
-        GROUP BY 1
-        ORDER BY 1
-    """
-    return _run_df(conn, sql, {"tag": tag_id, "d": days})
-
-
-def insert_ph_measurement(
+def insert_od_measurement(
     conn, tag_id: str, value: float, quality: int = 192,
     ts: datetime | None = None,
 ) -> int:
@@ -176,7 +154,7 @@ def insert_ph_measurement(
     with conn.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO ph_measurements (tag_id, timestamp, value, quality)
+            INSERT INTO od_measurements (tag_id, timestamp, value, quality)
             VALUES (%s, %s, %s, %s)
             ON CONFLICT (tag_id, timestamp) DO NOTHING
             """,

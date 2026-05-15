@@ -1,0 +1,351 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans); }
+  .dash { padding: 1rem 0; }
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+  .header-title { font-size: 15px; font-weight: 500; color: var(--color-text-primary); }
+  .header-sub { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+  .badge { font-size: 11px; padding: 3px 10px; border-radius: var(--border-radius-md); font-weight: 500; }
+  .badge-ok { background: var(--color-background-success); color: var(--color-text-success); }
+  .badge-warn { background: var(--color-background-warning); color: var(--color-text-warning); }
+  .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 1rem; }
+  .metric-card { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 12px 14px; }
+  .metric-label { font-size: 11px; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; display: flex; align-items: center; gap: 5px; }
+  .metric-value { font-size: 22px; font-weight: 500; color: var(--color-text-primary); line-height: 1.1; }
+  .metric-unit { font-size: 12px; font-weight: 400; color: var(--color-text-secondary); }
+  .metric-trend { font-size: 11px; margin-top: 4px; }
+  .trend-ok { color: var(--color-text-success); }
+  .trend-warn { color: var(--color-text-warning); }
+  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .panel { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 14px; }
+  .panel-title { font-size: 12px; font-weight: 500; color: var(--color-text-secondary); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  .od-gauge-wrap { display: flex; align-items: center; gap: 16px; }
+  .gauge-svg-wrap { flex-shrink: 0; }
+  .gauge-info { flex: 1; }
+  .gauge-val { font-size: 28px; font-weight: 500; color: var(--color-text-primary); }
+  .gauge-unit { font-size: 13px; color: var(--color-text-secondary); }
+  .range-bar-wrap { margin-top: 8px; }
+  .range-label { font-size: 11px; color: var(--color-text-secondary); display: flex; justify-content: space-between; margin-bottom: 3px; }
+  .range-bar { height: 8px; background: var(--color-background-secondary); border-radius: 4px; position: relative; overflow: hidden; }
+  .range-ok { position: absolute; left: 26.7%; width: 20%; height: 100%; background: var(--color-background-success); opacity: 0.6; }
+  .range-indicator { position: absolute; height: 100%; width: 3px; background: #185FA5; border-radius: 2px; transform: translateX(-1.5px); }
+  .blower-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .blower-icon { width: 40px; height: 40px; border-radius: 50%; background: var(--color-background-secondary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .blower-detail { flex: 1; }
+  .blower-name { font-size: 12px; font-weight: 500; color: var(--color-text-primary); }
+  .blower-sub { font-size: 11px; color: var(--color-text-secondary); }
+  .slider-row { display: flex; align-items: center; gap: 8px; }
+  .slider-row input[type=range] { flex: 1; }
+  .slider-val { font-size: 12px; font-weight: 500; color: var(--color-text-primary); min-width: 36px; text-align: right; }
+  .reactor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .reactor-stat { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 10px 12px; }
+  .reactor-stat-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 2px; display: flex; align-items: center; gap: 4px; }
+  .reactor-stat-val { font-size: 17px; font-weight: 500; color: var(--color-text-primary); }
+  .chart-panel { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 14px; margin-bottom: 10px; }
+  .chart-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; }
+  .leg-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--color-text-secondary); }
+  .leg-dot { width: 10px; height: 10px; border-radius: 2px; }
+  .alert-bar { background: var(--color-background-warning); border: 0.5px solid var(--color-border-warning); border-radius: var(--border-radius-md); padding: 8px 12px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--color-text-warning); margin-bottom: 10px; }
+  .footer-row { display: flex; gap: 8px; }
+  .footer-btn { flex: 1; padding: 8px 0; font-size: 12px; border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); background: transparent; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; }
+  .footer-btn:hover { background: var(--color-background-secondary); }
+  @media (max-width: 500px) { .panels { grid-template-columns: 1fr; } }
+</style>
+
+<div class="dash">
+  <h2 class="sr-only">Dashboard de control del reactor CSTR aerobio — PTAR</h2>
+
+  <div class="header">
+    <div>
+      <div class="header-title"><i class="ti ti-droplet" aria-hidden="true" style="font-size:16px; vertical-align:-2px; margin-right:4px;"></i>Reactor CSTR Aerobio — PTAR</div>
+      <div class="header-sub">Actualización en tiempo real · Turno: 08:00 – 16:00 h</div>
+    </div>
+    <span class="badge badge-ok" id="status-badge"><i class="ti ti-circle-check" style="font-size:13px; vertical-align:-1px; margin-right:3px;" aria-hidden="true"></i>Operación normal</span>
+  </div>
+
+  <div class="alert-bar" id="alert-bar" style="display:none;">
+    <i class="ti ti-alert-triangle" style="font-size:16px;" aria-hidden="true"></i>
+    <span id="alert-msg">Alerta de proceso</span>
+  </div>
+
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <div class="metric-label"><i class="ti ti-bubble" aria-hidden="true" style="font-size:13px;"></i>OD actual</div>
+      <div class="metric-value" id="od-display">2.4 <span class="metric-unit">ppm</span></div>
+      <div class="metric-trend trend-ok" id="od-trend">↑ Dentro del rango (2–3 ppm)</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label"><i class="ti ti-wind" aria-hidden="true" style="font-size:13px;"></i>Caudal de aire</div>
+      <div class="metric-value" id="q-display">120 <span class="metric-unit">m³/h</span></div>
+      <div class="metric-trend trend-ok">↑ Flujo estable</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label"><i class="ti ti-activity" aria-hidden="true" style="font-size:13px;"></i>Velocidad variador</div>
+      <div class="metric-value" id="hz-display">42 <span class="metric-unit">Hz</span></div>
+      <div class="metric-trend trend-ok">60% de capacidad nominal</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label"><i class="ti ti-temperature" aria-hidden="true" style="font-size:13px;"></i>Temperatura</div>
+      <div class="metric-value" id="temp-display">22.5 <span class="metric-unit">°C</span></div>
+      <div class="metric-trend trend-ok">Rango mesofílico OK</div>
+    </div>
+    <div class="metric-card" style="grid-column: span 2;">
+      <div class="metric-label"><i class="ti ti-box" aria-hidden="true" style="font-size:13px;"></i>Volumen reactor</div>
+      <div class="metric-value" id="vol-display">850 <span class="metric-unit">m³</span></div>
+      <div class="metric-trend" id="vol-trend" style="color:var(--color-text-secondary);">Nivel operativo: 85% del diseño (1000 m³)</div>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <div class="panel-title"><i class="ti ti-gauge" aria-hidden="true" style="font-size:14px;"></i>OD — Oxígeno disuelto</div>
+      <div class="od-gauge-wrap">
+        <div class="gauge-svg-wrap">
+          <svg width="90" height="90" viewBox="0 0 90 90" role="img" aria-label="Medidor OD: 2.4 ppm">
+            <circle cx="45" cy="45" r="36" fill="none" stroke="#E6F1FB" stroke-width="10"/>
+            <circle cx="45" cy="45" r="36" fill="none" stroke="#185FA5" stroke-width="10"
+              stroke-dasharray="226" stroke-dashoffset="113" id="od-arc"
+              stroke-linecap="round" transform="rotate(-90 45 45)"/>
+            <text x="45" y="43" text-anchor="middle" font-size="15" font-weight="500" fill="var(--color-text-primary)" id="od-gauge-val">2.4</text>
+            <text x="45" y="56" text-anchor="middle" font-size="9" fill="var(--color-text-secondary)">ppm OD</text>
+            <text x="10" y="74" text-anchor="middle" font-size="8" fill="var(--color-text-secondary)">0</text>
+            <text x="80" y="74" text-anchor="middle" font-size="8" fill="var(--color-text-secondary)">5</text>
+          </svg>
+        </div>
+        <div class="gauge-info">
+          <div style="font-size:11px; color:var(--color-text-secondary); margin-bottom:6px;">Zona operativa</div>
+          <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+            <span style="width:10px; height:10px; border-radius:2px; background:var(--color-background-success); display:inline-block;"></span>
+            <span style="font-size:11px; color:var(--color-text-secondary);">Óptimo: 2–3 ppm</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+            <span style="width:10px; height:10px; border-radius:2px; background:var(--color-background-warning); display:inline-block;"></span>
+            <span style="font-size:11px; color:var(--color-text-secondary);">Alerta: &lt;2 o &gt;3.5</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="width:10px; height:10px; border-radius:2px; background:var(--color-background-danger); display:inline-block;"></span>
+            <span style="font-size:11px; color:var(--color-text-secondary);">Crítico: &lt;1 o &gt;4</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><i class="ti ti-adjustments-horizontal" aria-hidden="true" style="font-size:14px;"></i>Control variador soplador</div>
+      <div class="blower-row">
+        <div class="blower-icon"><i class="ti ti-propeller" style="font-size:20px; color:var(--color-text-secondary);" aria-hidden="true"></i></div>
+        <div class="blower-detail">
+          <div class="blower-name">Soplador B-01</div>
+          <div class="blower-sub">VFD ABB · 0–70 Hz · 7.5 kW</div>
+        </div>
+        <span class="badge badge-ok">En línea</span>
+      </div>
+      <div style="margin-bottom:8px;">
+        <div style="font-size:11px; color:var(--color-text-secondary); margin-bottom:4px;">Frecuencia (Hz)</div>
+        <div class="slider-row">
+          <input type="range" min="0" max="70" value="42" step="1" id="hz-slider" aria-label="Frecuencia del variador en Hz">
+          <span class="slider-val" id="hz-val">42 Hz</span>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px; color:var(--color-text-secondary); margin-bottom:4px;">Caudal estimado (m³/h)</div>
+        <div class="slider-row">
+          <input type="range" min="0" max="250" value="120" step="5" id="q-slider" aria-label="Caudal de aire en m³/h">
+          <span class="slider-val" id="q-val">120 m³/h</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <div class="panel-title"><i class="ti ti-flask" aria-hidden="true" style="font-size:14px;"></i>Variables del reactor</div>
+      <div class="reactor-grid">
+        <div class="reactor-stat">
+          <div class="reactor-stat-label"><i class="ti ti-temperature" aria-hidden="true" style="font-size:12px;"></i>Temperatura</div>
+          <div class="reactor-stat-val" id="temp-stat">22.5 °C</div>
+          <div style="font-size:10px; color:var(--color-text-secondary); margin-top:2px;">Rango: 18–30 °C</div>
+        </div>
+        <div class="reactor-stat">
+          <div class="reactor-stat-label"><i class="ti ti-box" aria-hidden="true" style="font-size:12px;"></i>Volumen actual</div>
+          <div class="reactor-stat-val" id="vol-stat">850 m³</div>
+          <div style="font-size:10px; color:var(--color-text-secondary); margin-top:2px;">Diseño: 1 000 m³</div>
+        </div>
+        <div class="reactor-stat">
+          <div class="reactor-stat-label"><i class="ti ti-clock" aria-hidden="true" style="font-size:12px;"></i>TRH</div>
+          <div class="reactor-stat-val" id="trh-stat">8.5 h</div>
+          <div style="font-size:10px; color:var(--color-text-secondary); margin-top:2px;">Objetivo: ≥6 h</div>
+        </div>
+        <div class="reactor-stat">
+          <div class="reactor-stat-label"><i class="ti ti-chart-line" aria-hidden="true" style="font-size:12px;"></i>Nivel</div>
+          <div class="reactor-stat-val">85%</div>
+          <div style="font-size:10px; color:var(--color-text-secondary); margin-top:2px;">Operativo</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><i class="ti ti-sliders" aria-hidden="true" style="font-size:14px;"></i>Ajuste de variables</div>
+      <div style="margin-bottom:10px;">
+        <div style="font-size:11px; color:var(--color-text-secondary); margin-bottom:4px;">Temperatura del agua (°C)</div>
+        <div class="slider-row">
+          <input type="range" min="10" max="40" value="22" step="0.5" id="temp-slider" aria-label="Temperatura en grados Celsius">
+          <span class="slider-val" id="temp-val">22.5 °C</span>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px; color:var(--color-text-secondary); margin-bottom:4px;">Volumen reactor (m³)</div>
+        <div class="slider-row">
+          <input type="range" min="200" max="1000" value="850" step="10" id="vol-slider" aria-label="Volumen del reactor en metros cúbicos">
+          <span class="slider-val" id="vol-val">850 m³</span>
+        </div>
+      </div>
+      <div style="margin-top:12px; background:var(--color-background-secondary); border-radius:var(--border-radius-md); padding:8px 10px;">
+        <div style="font-size:11px; color:var(--color-text-secondary); margin-bottom:4px;">OD estimado (modelo simplificado)</div>
+        <div style="font-size:16px; font-weight:500; color:var(--color-text-primary);" id="od-estimated">2.4 ppm</div>
+        <div style="font-size:10px; color:var(--color-text-secondary); margin-top:2px;">f(Hz, Q_aire, T, V)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-panel">
+    <div class="chart-panel-header">
+      <div class="panel-title" style="margin:0;"><i class="ti ti-chart-line" aria-hidden="true" style="font-size:14px;"></i>Tendencia OD — últimas 24 h</div>
+      <div class="legend">
+        <span class="leg-item"><span class="leg-dot" style="background:#185FA5;"></span>OD medido</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#1D9E75;"></span>Zona óptima</span>
+        <span class="leg-item"><span class="leg-dot" style="background:#BA7517;"></span>Umbral alerta</span>
+      </div>
+    </div>
+    <div style="position:relative; height:180px;">
+      <canvas id="od-chart" role="img" aria-label="Gráfica de tendencia de OD en las últimas 24 horas entre 1.5 y 3.5 ppm">OD: valores entre 1.8 y 3.2 ppm durante 24 h.</canvas>
+    </div>
+  </div>
+
+  <div class="footer-row">
+    <button class="footer-btn" onclick="sendPrompt('¿Cómo ajustar el variador del soplador para mantener OD entre 2 y 3 ppm en el reactor CSTR?')"><i class="ti ti-adjustments" style="font-size:14px;" aria-hidden="true"></i> Optimizar variador ↗</button>
+    <button class="footer-btn" onclick="sendPrompt('Calcula el OPEX del soplador del reactor CSTR con 42 Hz de frecuencia, 7.5 kW nominales y tarifa de energía de 0.12 USD/kWh')"><i class="ti ti-calculator" style="font-size:14px;" aria-hidden="true"></i> Calcular OPEX ↗</button>
+    <button class="footer-btn" onclick="sendPrompt('Explica la relación entre el caudal de aire, la temperatura del agua y el oxígeno disuelto en un reactor CSTR aerobio')"><i class="ti ti-book" aria-hidden="true" style="font-size:14px;"></i> Fundamentos CSTR ↗</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const hours = Array.from({length:25}, (_,i) => (i < 10 ? '0'+i : i)+':00');
+const odData = [2.1,2.0,2.3,2.5,2.4,2.2,1.9,2.0,2.3,2.5,2.7,2.8,2.6,2.4,2.3,2.5,2.6,2.8,2.9,2.7,2.5,2.4,2.3,2.4,2.4];
+const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+const lineColor = '#378ADD';
+const okFill = 'rgba(29,158,117,0.12)';
+const warnColor = '#BA7517';
+
+new Chart(document.getElementById('od-chart'), {
+  type: 'line',
+  data: {
+    labels: hours,
+    datasets: [
+      { label: 'OD medido', data: odData, borderColor: lineColor, backgroundColor: 'rgba(55,138,221,0.08)', borderWidth: 2, pointRadius: 2, tension: 0.4, fill: false },
+      { label: 'Óptimo máx', data: Array(25).fill(3), borderColor: '#1D9E75', borderWidth: 1.5, borderDash: [6,4], pointRadius: 0, fill: false },
+      { label: 'Óptimo mín', data: Array(25).fill(2), borderColor: '#1D9E75', borderWidth: 1.5, borderDash: [6,4], pointRadius: 0, backgroundColor: okFill, fill: '+1' },
+      { label: 'Umbral mín alerta', data: Array(25).fill(1.5), borderColor: warnColor, borderWidth: 1, borderDash: [3,3], pointRadius: 0, fill: false }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+    scales: {
+      x: { ticks: { autoSkip: true, maxTicksLimit: 8, font: { size: 10 }, color: isDark ? '#888' : '#73726c' }, grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' } },
+      y: { min: 1, max: 4, ticks: { font: { size: 10 }, color: isDark ? '#888' : '#73726c', callback: v => v.toFixed(1)+' ppm' }, grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' } }
+    }
+  }
+});
+
+function calcOD(hz, q, temp, vol) {
+  const base = (hz / 70) * (q / 250);
+  const tempFactor = 1 - (temp - 20) * 0.015;
+  const volFactor = Math.sqrt(500 / Math.max(vol, 200));
+  return Math.max(0, Math.min(6, base * 5 * tempFactor * volFactor));
+}
+
+function updateDash() {
+  const hz = parseFloat(document.getElementById('hz-slider').value);
+  const q = parseFloat(document.getElementById('q-slider').value);
+  const temp = parseFloat(document.getElementById('temp-slider').value);
+  const vol = parseFloat(document.getElementById('vol-slider').value);
+
+  document.getElementById('hz-val').textContent = hz + ' Hz';
+  document.getElementById('q-val').textContent = q + ' m³/h';
+  document.getElementById('temp-val').textContent = temp.toFixed(1) + ' °C';
+  document.getElementById('vol-val').textContent = vol + ' m³';
+
+  document.getElementById('hz-display').innerHTML = hz + ' <span class="metric-unit">Hz</span>';
+  document.getElementById('q-display').innerHTML = q + ' <span class="metric-unit">m³/h</span>';
+  document.getElementById('temp-display').innerHTML = temp.toFixed(1) + ' <span class="metric-unit">°C</span>';
+  document.getElementById('vol-display').innerHTML = vol + ' <span class="metric-unit">m³</span>';
+  document.getElementById('temp-stat').textContent = temp.toFixed(1) + ' °C';
+  document.getElementById('vol-stat').textContent = vol + ' m³';
+
+  const trh = (vol / 100).toFixed(1);
+  document.getElementById('trh-stat').textContent = trh + ' h';
+
+  const od = calcOD(hz, q, temp, vol);
+  const odStr = od.toFixed(1);
+
+  document.getElementById('od-display').innerHTML = odStr + ' <span class="metric-unit">ppm</span>';
+  document.getElementById('od-gauge-val').textContent = odStr;
+  document.getElementById('od-estimated').textContent = odStr + ' ppm';
+
+  const arcMax = 200;
+  const arcOffset = arcMax - (od / 5) * arcMax;
+  document.getElementById('od-arc').setAttribute('stroke-dashoffset', arcOffset.toFixed(1));
+
+  const odTrend = document.getElementById('od-trend');
+  const statusBadge = document.getElementById('status-badge');
+  const alertBar = document.getElementById('alert-bar');
+  const alertMsg = document.getElementById('alert-msg');
+  const arcEl = document.getElementById('od-arc');
+
+  if (od < 1) {
+    odTrend.textContent = '↓ CRÍTICO: OD muy bajo — riesgo anóxico';
+    odTrend.className = 'metric-trend';
+    odTrend.style.color = 'var(--color-text-danger)';
+    arcEl.setAttribute('stroke', '#E24B4A');
+    statusBadge.className = 'badge badge-warn';
+    statusBadge.innerHTML = '<i class="ti ti-alert-triangle" style="font-size:13px; vertical-align:-1px; margin-right:3px;"></i>Alarma crítica';
+    alertBar.style.display = 'flex';
+    alertMsg.textContent = 'OD crítico (' + odStr + ' ppm) — incrementar Hz del variador';
+  } else if (od < 2) {
+    odTrend.textContent = '↓ Bajo rango — aumentar caudal de aire';
+    odTrend.className = 'metric-trend trend-warn';
+    odTrend.style.color = '';
+    arcEl.setAttribute('stroke', '#EF9F27');
+    statusBadge.className = 'badge badge-warn';
+    statusBadge.innerHTML = '<i class="ti ti-alert-triangle" style="font-size:13px; vertical-align:-1px; margin-right:3px;"></i>Alerta OD bajo';
+    alertBar.style.display = 'flex';
+    alertMsg.textContent = 'OD fuera de rango óptimo (' + odStr + ' ppm) — revisar variador';
+  } else if (od <= 3) {
+    odTrend.textContent = '↑ Dentro del rango óptimo (2–3 ppm)';
+    odTrend.className = 'metric-trend trend-ok';
+    odTrend.style.color = '';
+    arcEl.setAttribute('stroke', '#185FA5');
+    statusBadge.className = 'badge badge-ok';
+    statusBadge.innerHTML = '<i class="ti ti-circle-check" style="font-size:13px; vertical-align:-1px; margin-right:3px;"></i>Operación normal';
+    alertBar.style.display = 'none';
+  } else {
+    odTrend.textContent = '↑ Sobre-aireación — reducir Hz o caudal';
+    odTrend.className = 'metric-trend trend-warn';
+    odTrend.style.color = '';
+    arcEl.setAttribute('stroke', '#EF9F27');
+    statusBadge.className = 'badge badge-warn';
+    statusBadge.innerHTML = '<i class="ti ti-alert-triangle" style="font-size:13px; vertical-align:-1px; margin-right:3px;"></i>Alerta sobre-aireación';
+    alertBar.style.display = 'flex';
+    alertMsg.textContent = 'Sobre-aireación detectada (' + odStr + ' ppm) — reducir frecuencia del variador';
+  }
+}
+
+['hz-slider','q-slider','temp-slider','vol-slider'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateDash);
+});
+updateDash();
+</script>

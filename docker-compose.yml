@@ -115,6 +115,30 @@ services:
     networks:
       - ptar-shared
 
+  od-data-generator:
+    build: .
+    container_name: od-data-generator
+    restart: unless-stopped
+    command: ["python", "-m", "dashboard_od.data_generator"]
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    environment:
+      DB_HOST: timescaledb
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      OD_GENERATOR_LOG: INFO
+      OD_INTERVAL_SECONDS: 180
+      TZ: America/Bogota
+    volumes:
+      - ./dashboard_od:/app/dashboard_od:ro
+      - ./db.py:/app/db.py:ro
+      - ./config.py:/app/config.py:ro
+    networks:
+      - ptar-shared
+
 volumes:
   timescale_data:
   pgadmin_data:

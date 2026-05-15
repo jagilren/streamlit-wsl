@@ -42,6 +42,13 @@ except Exception:
     pass
 
 
+# ── Autenticación global ─────────────────────────────────────────────────────
+# Hecha aquí (no en cada dashboard). Si la cookie no es válida, muestra el
+# form de login y st.stop() — los dashboards nunca llegan a renderizarse.
+from components.auth import setup_auth
+_authenticator = setup_auth()
+
+
 # ── Navegación multi-dashboard ────────────────────────────────────────────────
 # Cada st.Page apunta al archivo entry de cada dashboard. Los archivos se
 # ejecutan tal cual (con su propia auth + sidebar + autorefresh).
@@ -58,6 +65,11 @@ pg = st.navigation(
                 "dashboard_ph/dashboard_ph.py",
                 title="pH",
                 icon="🧪",
+            ),
+            st.Page(
+                "dashboard_od/dashboard_od.py",
+                title="OD",
+                icon="🫧",
             ),
         ],
     }
@@ -169,14 +181,60 @@ _HEADER_HTML = f"""
 </script>
 """
 
-# height inicial = 100 px (suficiente para desktop); _resize() lo ajusta luego.
-components_html(_HEADER_HTML, height=100)
-
+# Encabezado sticky: la primera fila horizontal del main (columnas con logo,
+# título, reloj, usuario y logout) se queda pegada arriba al hacer scroll.
+# Notas:
+#   - `top: 0` se ancla al borde superior del scroll container (`section[main]`).
+#   - `z-index: 999` lo deja por encima de gráficas y tablas.
+#   - Fondo blanco + sombra suave para que tape el contenido al pasar debajo.
+#   - `border-bottom` reemplaza visualmente al `<hr>` antiguo cuando está pegado.
 st.markdown(
-    "<hr style='margin:6px 0 14px 0;border:none;"
-    "border-top:2px solid #185FA5;opacity:0.3'>",
+    """
+    <style>
+    section[data-testid="stMain"] .block-container > div[data-testid="stHorizontalBlock"]:first-of-type {
+      position: sticky;
+      top: 0;
+      z-index: 999;
+      background-color: #FFFFFF;
+      padding: 0.4rem 0 0.3rem 0;
+      border-bottom: 2px solid rgba(24, 95, 165, 0.3);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    }
+    </style>
+    """,
     unsafe_allow_html=True,
 )
+
+# Layout del encabezado: el iframe HTML responsive a la izquierda, el bloque
+# de usuario + logout a la derecha (widgets nativos de Streamlit, fuera del
+# iframe). En móvil quedarán apilados verticalmente porque st.columns colapsa
+# bajo cierto ancho del viewport.
+_h_left, _h_auth = st.columns([6, 1.4], vertical_alignment="center")
+with _h_left:
+    # height inicial = 100 px; _resize() lo ajusta luego.
+    components_html(_HEADER_HTML, height=100)
+with _h_auth:
+    _user = st.session_state.get("name", "")
+    # Misma fila: nombre del usuario a la izquierda, botón ⏻ a la derecha.
+    # `vertical_alignment="center"` evita que el botón quede más alto/bajo
+    # que el texto.
+    _col_name, _col_btn = st.columns([4, 1], vertical_alignment="center")
+    with _col_name:
+        st.markdown(
+            f"<div style='text-align:right;font-size:13px;color:#444;"
+            f"line-height:1.4'>"
+            f"👤 <strong style='color:#185FA5'>{_user}</strong>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+    with _col_btn:
+        _authenticator.logout(
+            "⏻", location="main", key="header-logout",
+        )
+
+# Separador visual debajo del header sticky (margen + el border-bottom del
+# header sticky ya hace de divider).
+st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
 
 # ── Render del dashboard activo ──────────────────────────────────────────────

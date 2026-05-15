@@ -1,7 +1,7 @@
-"""Dashboard ejecutivo pH — Gerencia Ambiental PTAR.
+"""Dashboard ejecutivo OD (Oxígeno Disuelto) — Gerencia Ambiental PTAR.
 
-App autónoma paralela al dashboard DQO. Ejecutar:
-    streamlit run dashboard_ph/dashboard_ph.py --server.port 8503
+App autónoma o page bajo home.py. Ejecutar standalone:
+    streamlit run dashboard_od/dashboard_od.py --server.port 8504
 """
 
 from __future__ import annotations
@@ -28,10 +28,10 @@ from components.shared_time_filter import (
     get_datetime_range, render_shared_time_filter,
 )
 from db import get_connection
-from dashboard_ph.components.sidebar_filters import render_ph_sidebar_filters
-from dashboard_ph.db_init import init_safe
-from dashboard_ph.queries import get_ph_last_timestamp
-from dashboard_ph.view import render as render_ph
+from dashboard_od.components.sidebar_filters import render_od_sidebar_filters
+from dashboard_od.db_init import init_safe
+from dashboard_od.queries import get_od_last_timestamp
+from dashboard_od.view import render as render_od
 
 
 # ── Configuración de página ───────────────────────────────────────────────────
@@ -39,8 +39,8 @@ from dashboard_ph.view import render as render_ph
 # llamado por el orquestador y vuelve a llamar aquí lanza StreamlitAPIException.
 try:
     st.set_page_config(
-        page_title="Dashboard pH — PTAR",
-        page_icon="🧪",
+        page_title="Dashboard OD — PTAR",
+        page_icon="🫧",
         layout="wide",
         initial_sidebar_state="expanded",
     )
@@ -49,10 +49,10 @@ except Exception:
 
 # Auto-refresh cada 60s para reflejar las lecturas nuevas del generator (3 min).
 AUTOREFRESH_MS = 60_000
-st_autorefresh(interval=AUTOREFRESH_MS, key="ph-autorefresh")
+st_autorefresh(interval=AUTOREFRESH_MS, key="od-autorefresh")
 
 
-# ── Inicialización idempotente del esquema pH ────────────────────────────────
+# ── Inicialización idempotente del esquema OD ────────────────────────────────
 init_safe()
 
 
@@ -64,13 +64,12 @@ setup_auth()
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("### 🧪 pH — PTAR")
+    st.markdown("### 🫧 OD — PTAR")
     st.caption("Lecturas cada 3 min · 4 transmisores.")
 
-    # Filtro de tiempo compartido con el dashboard DQO (mismas keys → persiste
-    # al navegar entre páginas dentro de home.py).
+    # Filtro de tiempo compartido (mismas keys que DQO/pH → persiste al navegar).
     periodo, fi_date, ff_date = render_shared_time_filter()
-    render_ph_sidebar_filters()
+    render_od_sidebar_filters()
 
 
 # Construye el rango de fechas para pasarlo al render.
@@ -90,8 +89,8 @@ except Exception as exc:
 
 
 # ── Encabezado ───────────────────────────────────────────────────────────────
-st.title("🧪 Dashboard pH — PTAR")
-_ult_ts = get_ph_last_timestamp(_conn)
+st.title("🫧 Dashboard OD — Oxígeno Disuelto")
+_ult_ts = get_od_last_timestamp(_conn)
 render_refresh_bar(
     autorefresh_seconds=AUTOREFRESH_MS // 1000,
     ultimo_dato_label=format_ultimo_dato(_ult_ts),
@@ -102,6 +101,6 @@ st.divider()
 
 # ── Cuerpo ───────────────────────────────────────────────────────────────────
 try:
-    render_ph(_conn, time_filter={"start": _fi, "end": _ff})
+    render_od(_conn, time_filter={"start": _fi, "end": _ff})
 finally:
     _conn.close()

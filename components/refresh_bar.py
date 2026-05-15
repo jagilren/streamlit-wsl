@@ -19,9 +19,28 @@ Uso típico:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 import streamlit as st
+
+
+_MESES_ES = {
+    1: "Ene", 2: "Feb", 3: "Mar", 4: "Abr", 5: "May", 6: "Jun",
+    7: "Jul", 8: "Ago", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dic",
+}
+
+
+def format_ultimo_dato(fecha: datetime | date | None) -> str | None:
+    """Formato compacto en español del timestamp del último dato.
+
+    Devuelve None si la fecha es None (para que `render_refresh_bar` omita
+    esa parte del caption).
+    """
+    if fecha is None:
+        return None
+    if isinstance(fecha, datetime):
+        return f"{fecha.day:02d} {_MESES_ES[fecha.month]} {fecha.year} {fecha.strftime('%H:%M')}"
+    return f"{fecha.day:02d} {_MESES_ES[fecha.month]} {fecha.year}"
 
 
 def render_refresh_bar(

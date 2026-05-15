@@ -101,9 +101,18 @@ def render(conn, time_filter: dict | None = None) -> None:
 
                     if rango_custom:
                         df_trend = get_cached_ph_trend_range(conn, cfg["tag_id"], fi, ff)
+                        st.caption(
+                            f"Rango: {fi:%d %b %Y %H:%M} → {ff:%d %b %Y %H:%M} "
+                            f"· {len(df_trend)} lecturas"
+                        )
                     else:
                         df_trend = get_cached_ph_trend(conn, cfg["tag_id"])
-                    fig = render_ph_trend_chart(df_trend, cfg)
+                        st.caption(f"Últimas 24 h · {len(df_trend)} lecturas")
+                    fig = render_ph_trend_chart(
+                        df_trend, cfg,
+                        fi=fi if rango_custom else None,
+                        ff=ff if rango_custom else None,
+                    )
                     st.plotly_chart(
                         fig, use_container_width=True,
                         key=f"ph_chart_{cfg['tag_id']}",
