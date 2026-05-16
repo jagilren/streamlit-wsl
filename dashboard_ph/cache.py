@@ -14,7 +14,7 @@ import streamlit as st
 from . import queries
 
 
-@st.cache_data(ttl=300, show_spinner=False)   # 5 min — config de TAGs
+@st.cache_data(ttl=60, show_spinner=False)    # 1 min — config de TAGs
 def get_cached_ph_tag_configs(_conn) -> list[dict]:
     return queries.get_ph_tag_configs(_conn)
 

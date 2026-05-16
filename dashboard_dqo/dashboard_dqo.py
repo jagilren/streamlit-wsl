@@ -32,9 +32,11 @@ from streamlit_autorefresh import st_autorefresh
 from dashboard_dqo.config import (
     AUTOREFRESH_MS, LIMITE_DQO_ALERTA, LIMITE_DQO_EFLUENTE, META_EFICIENCIA,
     PICO_DQO_AFLUENTE, RANGO_PH_MAX, RANGO_PH_MIN,
-    TAG_ENTRADA, TAG_SALIDA,
+    TAG_ENTRADA as _TAG_ENTRADA_FALLBACK,
+    TAG_SALIDA as _TAG_SALIDA_FALLBACK,
 )
-from dashboard_dqo.tag_admin import cargar_catalog
+from components.reload_tags import render_reload_tags_button
+from dashboard_dqo.tag_admin import cargar_catalog, resolve_tag_por_rol
 from dashboard_dqo.db_connector import (
     get_alarmas_activas, get_comparativo_mensual, get_dias_cumplimiento,
     get_distribucion_dqo_salida, get_dqo_serie_temporal, get_eficiencia_stats,
@@ -74,6 +76,12 @@ setup_auth()
 
 # ── Catálogo de TAGs (cargado desde BD; fallback a config si la BD falla) ────
 TAG_CATALOG = cargar_catalog("DQO")
+
+# Afluente y efluente se resuelven desde el catálogo (columna `rol`) en vez de
+# leerse directamente de config.py. Si la BD no tiene un TAG marcado con ese
+# rol, se cae al valor estático del config (compatibilidad hacia atrás).
+TAG_ENTRADA = resolve_tag_por_rol(TAG_CATALOG, "afluente", _TAG_ENTRADA_FALLBACK)
+TAG_SALIDA = resolve_tag_por_rol(TAG_CATALOG, "efluente", _TAG_SALIDA_FALLBACK)
 
 
 def _tags_por_rol(rol: str) -> list[str]:
@@ -137,6 +145,9 @@ def _sidebar() -> dict:
             st.cache_data.clear()
             st.session_state["ultima_actualizacion"] = datetime.now()
             st.rerun()
+
+        # Recarga puntual del catálogo de TAGs (no invalida el resto del cache).
+        render_reload_tags_button(cargar_catalog, key="dqo_reload_tags")
 
         ult = st.session_state.get("ultima_actualizacion", datetime.now())
         st.caption(f"Datos actualizados: {formato_fecha_display(ult)}")
@@ -208,7 +219,7 @@ def _zona_encabezado(filtros: dict, estado: str) -> None:
 def _zona_kpis(filtros: dict, kpis: dict, cumpl: dict) -> None:
     # delta vs período anterior (mismo largo)
     fi_ant, ff_ant = periodo_anterior(filtros["fi"], filtros["ff"])
-    kpi_ant = get_kpi_periodo(fi_ant, ff_ant)
+    kpi_ant = get_kpi_periodo(fi_ant, ff_ant, tag_in=TAG_ENTRADA, tag_out=TAG_SALIDA)
 
     eff = kpis["eficiencia_remocion"]
     delta_eff = delta_pct(eff, kpi_ant["eficiencia"])
@@ -283,7 +294,9 @@ def _zona_tendencia_gauge(filtros: dict, kpis: dict) -> None:
             chart_gauge_eficiencia(kpis["eficiencia_remocion"], filtros["meta_eff"]),
             use_container_width=True,
         )
-        stats = get_eficiencia_stats(filtros["fi"], filtros["ff"])
+        stats = get_eficiencia_stats(
+            filtros["fi"], filtros["ff"], tag_in=TAG_ENTRADA, tag_out=TAG_SALIDA,
+        )
         st.markdown(
             f"""
             <table style='width:100%;font-size:13px;'>
@@ -347,6 +360,7 @@ def _zona_paneles(filtros: dict, kpis: dict, df_comparativo: pd.DataFrame) -> No
                 limite_efluente=filtros["limite"],
                 alerta_efluente=filtros["alerta_dqo"],
                 meta_eficiencia=filtros["meta_eff"],
+                tag_in=TAG_ENTRADA, tag_out=TAG_SALIDA,
             )
         except Exception as exc:
             st.error(f"No se pudieron consultar alarmas: {exc}")
@@ -384,7 +398,9 @@ def _zona_analitica(filtros: dict, df_comparativo: pd.DataFrame) -> None:
     col_l, col_r = st.columns(2)
 
     with col_l:
-        serie = get_distribucion_dqo_salida(filtros["fi"], filtros["ff"])
+        serie = get_distribucion_dqo_salida(
+            filtros["fi"], filtros["ff"], tag_out=TAG_SALIDA,
+        )
         st.plotly_chart(chart_histograma(serie, filtros["limite"]),
                         use_container_width=True)
         if not serie.empty:
@@ -416,9 +432,18 @@ filtros = _sidebar()
 
 with st.spinner("Cargando datos…"):
     try:
-        kpis = get_kpi_actual(dias_atras=7, tags_extra=filtros["intermedios_activos"])
-        cumpl = get_dias_cumplimiento(filtros["fi"], filtros["ff"], filtros["limite"])
-        df_comparativo = get_comparativo_mensual(meses=12)
+        kpis = get_kpi_actual(
+            dias_atras=7,
+            tags_extra=filtros["intermedios_activos"],
+            tag_in=TAG_ENTRADA, tag_out=TAG_SALIDA,
+        )
+        cumpl = get_dias_cumplimiento(
+            filtros["fi"], filtros["ff"], filtros["limite"],
+            tag_out=TAG_SALIDA,
+        )
+        df_comparativo = get_comparativo_mensual(
+            meses=12, tag_in=TAG_ENTRADA, tag_out=TAG_SALIDA,
+        )
     except Exception as exc:
         st.error(
             f"No se pudo leer la base de datos: {exc}\n\n"

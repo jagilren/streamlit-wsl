@@ -74,14 +74,18 @@ def get_dqo_serie_temporal(
 @st.cache_data(ttl=CACHE_TTL_LIVE, show_spinner="Calculando KPIs…")
 def get_kpi_actual(
     dias_atras: int = 7, tags_extra: tuple[str, ...] = (),
+    tag_in: str = TAG_ENTRADA, tag_out: str = TAG_SALIDA,
 ) -> dict[str, Any]:
     """KPIs sobre los últimos N días.
 
     Siempre consulta el afluente y el efluente (base de los KPIs principales).
     Los `tags_extra` (intermedios opcionales) se devuelven en `valores_por_tag`
     para que la tabla de cumplimiento los muestre como referencia.
+
+    `tag_in`/`tag_out`: TAGs resueltos por el caller desde el catálogo BD.
+    Defaults a las constantes de config.py para retro-compatibilidad.
     """
-    todos_tags = (TAG_ENTRADA, TAG_SALIDA, *tags_extra)
+    todos_tags = (tag_in, tag_out, *tags_extra)
     sql = f"""
         SELECT
             tag_id,
@@ -108,8 +112,8 @@ def get_kpi_actual(
 
     por_tag = df.set_index("tag_id").to_dict("index")
     out["valores_por_tag"] = {t: v["promedio"] for t, v in por_tag.items()}
-    entrada = por_tag.get(TAG_ENTRADA, {}).get("promedio")
-    salida = por_tag.get(TAG_SALIDA, {}).get("promedio")
+    entrada = por_tag.get(tag_in, {}).get("promedio")
+    salida = por_tag.get(tag_out, {}).get("promedio")
     out["dqo_afluente_actual"] = entrada
     out["dqo_efluente_actual"] = salida
     if entrada and entrada > 0 and salida is not None:
@@ -123,7 +127,10 @@ def get_kpi_actual(
 
 # ── Comparativo período anterior (para delta % en KPIs) ───────────────────────
 @st.cache_data(ttl=CACHE_TTL)
-def get_kpi_periodo(fecha_inicio: datetime, fecha_fin: datetime) -> dict[str, float | None]:
+def get_kpi_periodo(
+    fecha_inicio: datetime, fecha_fin: datetime,
+    tag_in: str = TAG_ENTRADA, tag_out: str = TAG_SALIDA,
+) -> dict[str, float | None]:
     """Promedios de DQO en un período arbitrario. Útil para calcular deltas
     contra el período inmediatamente anterior."""
     sql = f"""
@@ -137,14 +144,14 @@ def get_kpi_periodo(fecha_inicio: datetime, fecha_fin: datetime) -> dict[str, fl
         GROUP BY tag_id
     """
     df = _run_df(sql, {
-        "t_in": TAG_ENTRADA, "t_out": TAG_SALIDA,
+        "t_in": tag_in, "t_out": tag_out,
         "fi": fecha_inicio, "ff": fecha_fin,
     })
     if df.empty:
         return {"entrada": None, "salida": None, "eficiencia": None}
     por_tag = df.set_index("tag_id")["promedio"].to_dict()
-    entrada = por_tag.get(TAG_ENTRADA)
-    salida = por_tag.get(TAG_SALIDA)
+    entrada = por_tag.get(tag_in)
+    salida = por_tag.get(tag_out)
     eff = None
     if entrada and entrada > 0 and salida is not None:
         eff = (1.0 - (salida / entrada)) * 100.0
@@ -155,8 +162,9 @@ def get_kpi_periodo(fecha_inicio: datetime, fecha_fin: datetime) -> dict[str, fl
 @st.cache_data(ttl=CACHE_TTL, show_spinner="Calculando cumplimiento…")
 def get_dias_cumplimiento(
     fecha_inicio: datetime, fecha_fin: datetime, limite: float,
+    tag_out: str = TAG_SALIDA,
 ) -> dict[str, Any]:
-    """Cuenta días donde el promedio diario del efluente (TAG_SALIDA) <= límite."""
+    """Cuenta días donde el promedio diario del efluente <= límite."""
     sql = f"""
         SELECT
             (timestamp AT TIME ZONE 'UTC')::date AS fecha,
@@ -168,7 +176,7 @@ def get_dias_cumplimiento(
         GROUP BY fecha
         ORDER BY fecha
     """
-    df = _run_df(sql, {"t_out": TAG_SALIDA, "fi": fecha_inicio, "ff": fecha_fin})
+    df = _run_df(sql, {"t_out": tag_out, "fi": fecha_inicio, "ff": fecha_fin})
 
     if df.empty:
         return {
@@ -193,6 +201,7 @@ def get_dias_cumplimiento(
 @st.cache_data(ttl=CACHE_TTL, show_spinner="Consultando distribución…")
 def get_distribucion_dqo_salida(
     fecha_inicio: datetime, fecha_fin: datetime,
+    tag_out: str = TAG_SALIDA,
 ) -> pd.Series:
     sql = f"""
         SELECT value::float AS value
@@ -203,13 +212,16 @@ def get_distribucion_dqo_salida(
           AND value > 0
         ORDER BY timestamp
     """
-    df = _run_df(sql, {"t_out": TAG_SALIDA, "fi": fecha_inicio, "ff": fecha_fin})
+    df = _run_df(sql, {"t_out": tag_out, "fi": fecha_inicio, "ff": fecha_fin})
     return df["value"] if not df.empty else pd.Series(dtype=float)
 
 
 # ── 4.5 Comparativo mensual (últimos 12 meses) ────────────────────────────────
 @st.cache_data(ttl=CACHE_TTL, show_spinner="Calculando comparativo mensual…")
-def get_comparativo_mensual(meses: int = 12) -> pd.DataFrame:
+def get_comparativo_mensual(
+    meses: int = 12,
+    tag_in: str = TAG_ENTRADA, tag_out: str = TAG_SALIDA,
+) -> pd.DataFrame:
     """Devuelve DataFrame con columnas:
 
         Mes, DQO_Entrada_Avg, DQO_Salida_Avg,
@@ -233,7 +245,7 @@ def get_comparativo_mensual(meses: int = 12) -> pd.DataFrame:
         GROUP BY mes, tag_id
         ORDER BY mes
     """
-    df = _run_df(sql, {"t_in": TAG_ENTRADA, "t_out": TAG_SALIDA, "m": meses})
+    df = _run_df(sql, {"t_in": tag_in, "t_out": tag_out, "m": meses})
     if df.empty:
         return pd.DataFrame(columns=[
             "Mes", "DQO_Entrada_Avg", "DQO_Salida_Avg",
@@ -242,9 +254,9 @@ def get_comparativo_mensual(meses: int = 12) -> pd.DataFrame:
 
     pivot = (
         df.pivot(index="mes", columns="tag_id", values="promedio")
-          .rename(columns={TAG_ENTRADA: "DQO_Entrada_Avg", TAG_SALIDA: "DQO_Salida_Avg"})
+          .rename(columns={tag_in: "DQO_Entrada_Avg", tag_out: "DQO_Salida_Avg"})
     )
-    salida = df[df["tag_id"] == TAG_SALIDA].set_index("mes")
+    salida = df[df["tag_id"] == tag_out].set_index("mes")
     pivot["DQO_Salida_Min"] = salida["minimo"]
     pivot["DQO_Salida_Max"] = salida["maximo"]
     pivot = pivot.reset_index().rename(columns={"mes": "Mes"})
@@ -262,6 +274,7 @@ def get_alarmas_activas(
     limite_efluente: float = 200.0,
     alerta_efluente: float = 160.0,
     meta_eficiencia: float = 90.0,
+    tag_in: str = TAG_ENTRADA, tag_out: str = TAG_SALIDA,
 ) -> list[dict]:
     """Recorre los últimos N días y emite alarmas por:
        1) pico en el afluente   > pico_afluente   → crítico
@@ -283,7 +296,7 @@ def get_alarmas_activas(
         GROUP BY dia, tag_id
         ORDER BY dia DESC
     """
-    df = _run_df(sql, {"t_in": TAG_ENTRADA, "t_out": TAG_SALIDA, "d": dias_atras})
+    df = _run_df(sql, {"t_in": tag_in, "t_out": tag_out, "d": dias_atras})
     if df.empty:
         return []
 
@@ -292,17 +305,17 @@ def get_alarmas_activas(
 
     alarmas: list[dict] = []
     for dia in pivot_avg.index:
-        entrada_avg = pivot_avg.at[dia, TAG_ENTRADA] if TAG_ENTRADA in pivot_avg.columns else None
-        entrada_max = pivot_max.at[dia, TAG_ENTRADA] if TAG_ENTRADA in pivot_max.columns else None
-        salida_avg = pivot_avg.at[dia, TAG_SALIDA] if TAG_SALIDA in pivot_avg.columns else None
+        entrada_avg = pivot_avg.at[dia, tag_in] if tag_in in pivot_avg.columns else None
+        entrada_max = pivot_max.at[dia, tag_in] if tag_in in pivot_max.columns else None
+        salida_avg = pivot_avg.at[dia, tag_out] if tag_out in pivot_avg.columns else None
 
         if entrada_max is not None and entrada_max > pico_afluente:
             alarmas.append({
                 "categoria": "dqo",
                 "tipo": "Pico de carga afluente",
-                "descripcion": f"{TAG_ENTRADA} superó {pico_afluente:.0f} mg/L",
+                "descripcion": f"{tag_in} superó {pico_afluente:.0f} mg/L",
                 "valor": entrada_max, "unidad": "mg/L",
-                "timestamp": dia, "tag": TAG_ENTRADA, "severidad": "critico",
+                "timestamp": dia, "tag": tag_in, "severidad": "critico",
             })
 
         if salida_avg is not None:
@@ -310,17 +323,17 @@ def get_alarmas_activas(
                 alarmas.append({
                     "categoria": "dqo",
                     "tipo": "Excedencia DQO efluente",
-                    "descripcion": f"{TAG_SALIDA} promedio diario > límite {limite_efluente:.0f} mg/L",
+                    "descripcion": f"{tag_out} promedio diario > límite {limite_efluente:.0f} mg/L",
                     "valor": salida_avg, "unidad": "mg/L",
-                    "timestamp": dia, "tag": TAG_SALIDA, "severidad": "critico",
+                    "timestamp": dia, "tag": tag_out, "severidad": "critico",
                 })
             elif salida_avg > alerta_efluente:
                 alarmas.append({
                     "categoria": "dqo",
                     "tipo": "Alerta DQO efluente",
-                    "descripcion": f"{TAG_SALIDA} > umbral de alerta {alerta_efluente:.0f} mg/L",
+                    "descripcion": f"{tag_out} > umbral de alerta {alerta_efluente:.0f} mg/L",
                     "valor": salida_avg, "unidad": "mg/L",
-                    "timestamp": dia, "tag": TAG_SALIDA, "severidad": "alerta",
+                    "timestamp": dia, "tag": tag_out, "severidad": "alerta",
                 })
 
         if entrada_avg and salida_avg is not None and entrada_avg > 0:
@@ -352,6 +365,7 @@ def get_alarmas_activas(
 @st.cache_data(ttl=CACHE_TTL)
 def get_eficiencia_stats(
     fecha_inicio: datetime, fecha_fin: datetime,
+    tag_in: str = TAG_ENTRADA, tag_out: str = TAG_SALIDA,
 ) -> dict[str, float | None]:
     """Devuelve {promedio_periodo, minimo_semanal, promedio_anual} para el gauge."""
     sql_periodo = f"""
@@ -365,16 +379,16 @@ def get_eficiencia_stats(
           AND value IS NOT NULL
         GROUP BY dia, tag_id
     """
-    df = _run_df(sql_periodo, {"t_in": TAG_ENTRADA, "t_out": TAG_SALIDA,
+    df = _run_df(sql_periodo, {"t_in": tag_in, "t_out": tag_out,
                                "fi": fecha_inicio, "ff": fecha_fin})
 
     def _eff_serie(d: pd.DataFrame) -> pd.Series:
         if d.empty:
             return pd.Series(dtype=float)
         p = d.pivot(index="dia", columns="tag_id", values="avg_val").dropna(how="any")
-        if p.empty or TAG_ENTRADA not in p.columns or TAG_SALIDA not in p.columns:
+        if p.empty or tag_in not in p.columns or tag_out not in p.columns:
             return pd.Series(dtype=float)
-        return (1.0 - p[TAG_SALIDA] / p[TAG_ENTRADA]) * 100.0
+        return (1.0 - p[tag_out] / p[tag_in]) * 100.0
 
     eff_periodo = _eff_serie(df)
     prom_periodo = float(eff_periodo.mean()) if not eff_periodo.empty else None
@@ -383,7 +397,7 @@ def get_eficiencia_stats(
         "BETWEEN %(fi)s AND %(ff)s",
         ">= NOW() - INTERVAL '7 days'",
     )
-    df_sem = _run_df(sql_semana, {"t_in": TAG_ENTRADA, "t_out": TAG_SALIDA})
+    df_sem = _run_df(sql_semana, {"t_in": tag_in, "t_out": tag_out})
     eff_sem = _eff_serie(df_sem)
     min_sem = float(eff_sem.min()) if not eff_sem.empty else None
 
@@ -391,7 +405,7 @@ def get_eficiencia_stats(
         "BETWEEN %(fi)s AND %(ff)s",
         ">= date_trunc('year', NOW())",
     )
-    df_an = _run_df(sql_anual, {"t_in": TAG_ENTRADA, "t_out": TAG_SALIDA})
+    df_an = _run_df(sql_anual, {"t_in": tag_in, "t_out": tag_out})
     eff_an = _eff_serie(df_an)
     prom_anual = float(eff_an.mean()) if not eff_an.empty else None
 

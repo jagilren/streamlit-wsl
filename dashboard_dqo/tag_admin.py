@@ -38,6 +38,34 @@ TIPOS_VALIDOS = ("DQO", "pH", "Caudal", "Quimico")
 ROLES_VALIDOS = ("afluente", "intermedio", "efluente", None)
 
 
+def resolve_tag_por_rol(
+    catalog: dict[str, dict[str, Any]], rol: str, fallback: str,
+) -> str:
+    """Devuelve el `tag_id` del catálogo con el `rol` indicado.
+
+    Si hay 0 candidatos → fallback (constante hardcoded del config).
+    Si hay 1 candidato  → ese.
+    Si hay >1 (config inconsistente) → primero por orden alfabético + warning.
+    Es la función que permite que afluente/efluente se gestionen desde la BD
+    sin hardcodearlos en config.py.
+    """
+    candidatos = sorted(
+        t for t, m in catalog.items() if m.get("rol") == rol
+    )
+    if not candidatos:
+        _log.warning(
+            "Catálogo DQO no tiene TAG con rol=%r; usando fallback %r.",
+            rol, fallback,
+        )
+        return fallback
+    if len(candidatos) > 1:
+        _log.warning(
+            "Catálogo DQO tiene %d TAGs con rol=%r (%s); usando %r.",
+            len(candidatos), rol, candidatos, candidatos[0],
+        )
+    return candidatos[0]
+
+
 _SCHEMA = [
     """
     CREATE TABLE IF NOT EXISTS tag_metadata (
